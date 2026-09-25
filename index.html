@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Humano vs Máquina</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --painel: #161b22;
+    --borda: #30363d;
+    --texto: #e6edf3;
+    --fraco: #8b949e;
+    --verde: #3fb950;
+    --azul: #58a6ff;
+    --amarelo: #f5c542;
+    --vermelho: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--texto);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header { text-align: center; margin-bottom: 20px; }
+  h1 { font-family: monospace; font-size: clamp(1.6rem, 4vw, 3rem); color: var(--verde); }
+  h1 .cursor { animation: pisca 1s steps(1) infinite; }
+  @keyframes pisca { 50% { opacity: 0; } }
+  .subtitulo { color: var(--fraco); margin-top: 6px; font-size: 1.1rem; }
+
+  /* ---- Arena ---- */
+  .arena {
+    width: 100%; max-width: 1300px;
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px;
+  }
+  @media (max-width: 900px) { .arena { grid-template-columns: 1fr; } }
+  .lado, .centro {
+    background: var(--painel); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 16px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .lado h2 { margin-bottom: 12px; font-size: 1.3rem; }
+
+  .camera { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 8px; overflow: hidden; }
+  .camera video, .camera canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1);   /* espelha, como um espelho de verdade */
+  }
+  .vendo {
+    position: absolute; left: 10px; bottom: 10px;
+    background: rgba(0,0,0,.7); padding: 6px 12px; border-radius: 6px;
+    font-size: 1.1rem;
+  }
+  .jogada-humano {
+    position: absolute; right: 12px; top: 8px;
+    font-size: 5rem; display: none;
+  }
+
+  .centro { justify-content: center; text-align: center; gap: 14px; }
+  .placar-partida { font-family: monospace; font-size: clamp(3rem, 7vw, 5rem); font-weight: bold; }
+  .placar-partida .humano { color: var(--azul); }
+  .placar-partida .ia { color: var(--vermelho); }
+  .placar-partida .x { color: var(--fraco); margin: 0 12px; }
+  .rotulos { display: flex; justify-content: space-between; width: 60%; color: var(--fraco); margin-top: -10px; }
+  .aviso { font-size: clamp(1.6rem, 3.5vw, 2.6rem); font-weight: bold; min-height: 2.6em; display: flex; align-items: center; justify-content: center; }
+  .aviso.contagem { color: var(--amarelo); font-size: clamp(2.4rem, 6vw, 4.5rem); }
+  .subaviso { color: var(--fraco); font-size: 1.1rem; min-height: 1.4em; }
+  .regra { color: var(--fraco); font-size: .95rem; }
+
+  .mao-ia { font-size: clamp(6rem, 12vw, 10rem); line-height: 1.2; margin: 10px 0; }
+  .mao-ia.pensando { animation: balanca .3s ease-in-out infinite alternate; }
+  @keyframes balanca { from { transform: translateY(-10px); } to { transform: translateY(10px); } }
+
+  .cerebro { width: 100%; min-height: 130px; }
+  .cerebro-titulo { color: var(--fraco); margin-bottom: 8px; text-align: center; }
+  .linha-prev { display: grid; grid-template-columns: 2.2rem 1fr 3.2rem; align-items: center; gap: 8px; margin: 6px 0; }
+  .linha-prev .emoji { font-size: 1.6rem; }
+  .linha-prev .trilho { height: 16px; background: #21262d; border-radius: 8px; overflow: hidden; }
+  .linha-prev .enche { height: 100%; background: var(--vermelho); transition: width .6s; }
+  .linha-prev .pct { font-family: monospace; text-align: right; }
+  .linha-prev.real .emoji { outline: 2px solid var(--amarelo); border-radius: 6px; }
+
+  /* ---- Placar do dia ---- */
+  .placar-geral {
+    width: 100%; max-width: 1300px; margin-top: 16px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  @media (max-width: 700px) { .placar-geral { grid-template-columns: 1fr; } }
+  .placar-geral div {
+    background: var(--painel); border: 1px solid var(--borda); border-radius: 12px;
+    padding: 14px; text-align: center; color: var(--fraco);
+  }
+  .placar-geral b { display: block; font-size: 2.2rem; color: var(--texto); font-family: monospace; }
+
+  /* ---- Como funciona ---- */
+  .como {
+    width: 100%; max-width: 1300px; margin-top: 16px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  @media (max-width: 900px) { .como { grid-template-columns: 1fr; } }
+  .como div { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; padding: 16px; line-height: 1.5; }
+  .como h3 { margin-bottom: 6px; color: var(--verde); }
+  .como p { color: var(--fraco); }
+
+  footer { margin-top: auto; padding-top: 24px; color: var(--fraco); font-size: .9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&gt; Humano vs Máquina<span class="cursor">_</span></h1>
+  <p class="subtitulo">Pedra, papel e tesoura contra uma IA que aprende o seu jeito de jogar</p>
+</header>
+
+<main class="arena">
+  <div class="lado">
+    <h2>🧑 Você</h2>
+    <div class="camera">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="desenho"></canvas>
+      <div class="vendo" id="vendo">Ligando a câmera...</div>
+      <div class="jogada-humano" id="jogadaHumano"></div>
+    </div>
+  </div>
+
+  <div class="centro">
+    <div class="placar-partida">
+      <span class="humano" id="ptsHumano">0</span><span class="x">×</span><span class="ia" id="ptsIA">0</span>
+    </div>
+    <div class="rotulos"><span>Você</span><span>Máquina</span></div>
+    <div class="aviso" id="aviso">Carregando a IA...</div>
+    <div class="subaviso" id="subaviso"></div>
+    <div class="regra">Quem fizer 3 pontos primeiro vence</div>
+  </div>
+
+  <div class="lado">
+    <h2>🤖 Máquina</h2>
+    <div class="mao-ia" id="maoIA">🤖</div>
+    <div class="cerebro" id="cerebro"></div>
+  </div>
+</main>
+
+<section class="placar-geral">
+  <div><b id="geralHumanos">0</b>partidas vencidas por humanos</div>
+  <div><b id="geralMaquina">0</b>partidas vencidas pela máquina</div>
+  <div><b id="acertoIA">–</b>das jogadas humanas a IA adivinhou</div>
+</section>
+
+<section class="como">
+  <div>
+    <h3>1. Ela te enxerga 👁️</h3>
+    <p>Uma rede neural, treinada com milhares de fotos de mãos, encontra 21 pontos na sua mão
+       (as bolinhas na tela) e reconhece o gesto em tempo real. Isso é <b>visão computacional</b>.</p>
+  </div>
+  <div>
+    <h3>2. Ela te estuda 🧠</h3>
+    <p>A IA anota o que você joga depois de ganhar, perder ou empatar. Humanos costumam
+       <b>repetir quando ganham e trocar quando perdem</b>. E ela aprende com todo mundo que jogou hoje!</p>
+  </div>
+  <div>
+    <h3>3. Ela não trapaceia 🤝</h3>
+    <p>A jogada da máquina é escolhida <b>antes</b> de ela ver sua mão, só com base na previsão.
+       Se ela ganha, é porque adivinhou o que você ia fazer.</p>
+  </div>
+</section>
+
+<footer>Computação · USP</footer>
+
+<script type="module">
+// =====================================================
+// Regras do jogo
+// =====================================================
+const JOGADAS = ["pedra", "papel", "tesoura"];
+const EMOJI = { pedra: "✊", papel: "✋", tesoura: "✌️" };
+const VENCE = { pedra: "tesoura", papel: "pedra", tesoura: "papel" };   // pedra vence tesoura...
+const CONTRA = { pedra: "papel", papel: "tesoura", tesoura: "pedra" };  // o que vence cada jogada
+const PONTOS_PARA_VENCER = 3;
+
+// Nomes dos gestos que o modelo do MediaPipe reconhece → nossas jogadas
+const GESTOS = { Closed_Fist: "pedra", Open_Palm: "papel", Victory: "tesoura", Thumb_Up: "joinha" };
+
+const $ = id => document.getElementById(id);
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+// =====================================================
+// Memória da IA (fica salva no navegador o dia todo)
+// =====================================================
+const CHAVE = "humano-vs-maquina-v1";
+
+function memoriaInicial() {
+  // Um "palpite de fábrica", baseado em estudos sobre como humanos jogam:
+  // começam mais com pedra, repetem quando ganham e trocam quando perdem.
+  const apos = {};
+  for (const j of JOGADAS) {
+    apos[`${j}|venceu`]  = { pedra: 1, papel: 1, tesoura: 1, [j]: 3 };
+    apos[`${j}|perdeu`]  = { pedra: 1, papel: 1, tesoura: 1, [CONTRA[CONTRA[j]]]: 3 };
+    apos[`${j}|empatou`] = { pedra: 1, papel: 1, tesoura: 1 };
+  }
+  return {
+    inicio: { pedra: 3, papel: 2, tesoura: 2 },
+    apos,
+    placar: { humanos: 0, maquina: 0 },
+    rodadas: 0,
+    acertos: 0,
+  };
+}
+
+let memoria;
+try { memoria = JSON.parse(localStorage.getItem(CHAVE)) || memoriaInicial(); }
+catch { memoria = memoriaInicial(); }
+
+function salvar() {
+  try { localStorage.setItem(CHAVE, JSON.stringify(memoria)); } catch {}
+  $("geralHumanos").textContent = memoria.placar.humanos;
+  $("geralMaquina").textContent = memoria.placar.maquina;
+  $("acertoIA").textContent = memoria.rodadas ? Math.round(memoria.acertos / memoria.rodadas * 100) + "%" : "–";
+}
+
+// =====================================================
+// O "cérebro": prevê a próxima jogada do humano
+// =====================================================
+let historico = [];   // rodadas da partida atual: { humano, ia, resultado }
+
+function prever() {
+  const pesos = { pedra: 0.3, papel: 0.3, tesoura: 0.3 };   // começa sem opinião
+
+  // Cada fonte de pistas vota, com mais força quanto mais dados ela tem
+  function votar(contagem, forca) {
+    const total = JOGADAS.reduce((s, j) => s + (contagem[j] || 0), 0);
+    if (!total) return;
+    const confianca = total / (total + 2);
+    for (const j of JOGADAS) pesos[j] += forca * confianca * (contagem[j] || 0) / total;
+  }
+
+  const ultima = historico.at(-1);
+  if (!ultima) {
+    votar(memoria.inicio, 1);                                         // como as pessoas costumam abrir
+  } else {
+    votar(memoria.apos[`${ultima.humano}|${ultima.resultado}`], 1);  // o que TODO MUNDO faz nessa situação
+
+    const depoisDaMesma = {};                                         // o que VOCÊ fez das outras vezes
+    for (let i = 1; i < historico.length; i++)                        // depois de jogar a mesma coisa
+      if (historico[i - 1].humano === ultima.humano)
+        depoisDaMesma[historico[i].humano] = (depoisDaMesma[historico[i].humano] || 0) + 1;
+    votar(depoisDaMesma, 1.5);
+
+    const favoritas = {};                                             // sua jogada preferida
+    for (const h of historico) favoritas[h.humano] = (favoritas[h.humano] || 0) + 1;
+    votar(favoritas, 0.7);
+  }
+
+  const soma = JOGADAS.reduce((s, j) => s + pesos[j], 0);
+  const prob = {};
+  for (const j of JOGADAS) prob[j] = pesos[j] / soma;
+  return prob;
+}
+
+function maisProvavel(prob) {
+  const maior = Math.max(...JOGADAS.map(j => prob[j]));
+  const empatadas = JOGADAS.filter(j => prob[j] === maior);
+  return empatadas[Math.floor(Math.random() * empatadas.length)];
+}
+
+function aprender(rodada) {
+  const anterior = historico.at(-1);
+  const tabela = anterior ? memoria.apos[`${anterior.humano}|${anterior.resultado}`] : memoria.inicio;
+  tabela[rodada.humano]++;
+  historico.push(rodada);
+}
+
+// =====================================================
+// Visão computacional: câmera + reconhecimento de gestos
+// =====================================================
+const video = $("video");
+const canvas = $("desenho");
+const ctx = canvas.getContext("2d");
+let reconhecedor, desenhista, GestureRecognizer;
+let gestoAtual = null;        // "pedra" | "papel" | "tesoura" | "joinha" | null
+let amostras = null;          // quando não é null, estamos "fotografando" a jogada
+let framesJoinha = 0;
+
+const CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1";
+const MODELO_CDN = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task";
+
+async function existe(url) {
+  try { return (await fetch(url, { method: "HEAD" })).ok; } catch { return false; }
+}
+
+async function carregarIA() {
+  // Usa os arquivos baixados (./baixar-offline.sh) se existirem; senão, busca na internet
+  const offline = await existe("vendor/gesture_recognizer.task")
+               && await existe("vendor/mediapipe/wasm/vision_wasm_internal.wasm");
+  const base = offline ? "./vendor/mediapipe" : CDN;
+  const visao = await import(`${base}/vision_bundle.mjs`);
+  GestureRecognizer = visao.GestureRecognizer;
+
+  const arquivos = await visao.FilesetResolver.forVisionTasks(`${base}/wasm`);
+  const opcoes = delegate => ({
+    baseOptions: { modelAssetPath: offline ? "vendor/gesture_recognizer.task" : MODELO_CDN, delegate },
+    runningMode: "VIDEO",
+    numHands: 1,
+  });
+  try { reconhecedor = await GestureRecognizer.createFromOptions(arquivos, opcoes("GPU")); }
+  catch { reconhecedor = await GestureRecognizer.createFromOptions(arquivos, opcoes("CPU")); }
+  desenhista = new visao.DrawingUtils(ctx);
+}
+
+async function ligarCamera() {
+  video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+  await new Promise(r => video.onloadeddata = r);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+}
+
+let ultimoTempo = -1;
+function loop() {
+  if (video.currentTime !== ultimoTempo) {
+    ultimoTempo = video.currentTime;
+    const r = reconhecedor.recognizeForVideo(video, performance.now());
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const pontos of r.landmarks) {
+      desenhista.drawConnectors(pontos, GestureRecognizer.HAND_CONNECTIONS, { color: "#3fb950", lineWidth: 4 });
+      desenhista.drawLandmarks(pontos, { color: "#f5c542", radius: 4 });
+    }
+
+    const g = r.gestures[0]?.[0];
+    gestoAtual = g && g.score > 0.5 ? GESTOS[g.categoryName] || null : null;
+
+    $("vendo").textContent = !r.landmarks.length ? "Mostre a mão para a câmera"
+      : gestoAtual === "joinha" ? "Estou vendo: 👍"
+      : gestoAtual ? `Estou vendo: ${EMOJI[gestoAtual]} ${gestoAtual}`
+      : "Estou vendo: 🤔 ...";
+
+    if (amostras && JOGADAS.includes(gestoAtual)) amostras.push(gestoAtual);
+
+    // Segurar o 👍 por ~meio segundo começa uma partida
+    framesJoinha = gestoAtual === "joinha" ? framesJoinha + 1 : 0;
+    if (framesJoinha > 12) iniciarPartida();
+  }
+  requestAnimationFrame(loop);
+}
+
+// Observa a mão por um tempo e devolve o gesto que mais apareceu
+async function capturarJogada(ms) {
+  amostras = [];
+  await esperar(ms);
+  const vistos = amostras;
+  amostras = null;
+  if (vistos.length < 3) return null;
+  const conta = {};
+  for (const j of vistos) conta[j] = (conta[j] || 0) + 1;
+  return JOGADAS.reduce((a, b) => (conta[a] || 0) >= (conta[b] || 0) ? a : b);
+}
+
+// =====================================================
+// Fluxo do jogo
+// =====================================================
+let estado = "carregando";   // carregando | aguardando | jogando
+let pontos = { humano: 0, ia: 0 };
+
+function aviso(texto, sub = "", contagem = false) {
+  $("aviso").textContent = texto;
+  $("aviso").classList.toggle("contagem", contagem);
+  $("subaviso").textContent = sub;
+}
+
+function mostrarPlacar() {
+  $("ptsHumano").textContent = pontos.humano;
+  $("ptsIA").textContent = pontos.ia;
+}
+
+function mostrarCerebro(prob, real) {
+  if (!prob) { $("cerebro").innerHTML = ""; return; }
+  $("cerebro").innerHTML = `<div class="cerebro-titulo">Eu previ que você jogaria:</div>` +
+    JOGADAS.map(j => `
+      <div class="linha-prev ${j === real ? "real" : ""}">
+        <span class="emoji">${EMOJI[j]}</span>
+        <div class="trilho"><div class="enche" style="width:${Math.round(prob[j] * 100)}%"></div></div>
+        <span class="pct">${Math.round(prob[j] * 100)}%</span>
+      </div>`).join("");
+}
+
+function telaInicial() {
+  estado = "aguardando";
+  pontos = { humano: 0, ia: 0 };
+  mostrarPlacar();
+  mostrarCerebro(null);
+  $("maoIA").textContent = "🤖";
+  $("jogadaHumano").style.display = "none";
+  aviso("Faça 👍 para começar", "Você consegue vencer a máquina?");
+}
+
+async function jogarRodada() {
+  // 1. A máquina decide ANTES de ver sua mão
+  const prob = prever();
+  const palpite = maisProvavel(prob);
+  const jogadaIA = CONTRA[palpite];
+
+  mostrarCerebro(null);
+  $("jogadaHumano").style.display = "none";
+  $("maoIA").textContent = "✊";
+  $("maoIA").classList.add("pensando");
+
+  // 2. Contagem
+  for (const palavra of ["Pedra...", "Papel...", "Tesoura..."]) {
+    aviso(palavra, "", true);
+    await esperar(650);
+  }
+  aviso("JÁ!", "Segure a mão parada!", true);
+  const humano = await capturarJogada(800);
+  $("maoIA").classList.remove("pensando");
+
+  if (!humano) {
+    $("maoIA").textContent = "🤖";
+    aviso("Não vi sua mão 👀", "Vamos de novo!");
+    await esperar(1500);
+    return jogarRodada();
+  }
+
+  // 3. Revela e decide quem ganhou
+  const resultado = humano === jogadaIA ? "empatou" : VENCE[humano] === jogadaIA ? "venceu" : "perdeu";
+  $("maoIA").textContent = EMOJI[jogadaIA];
+  $("jogadaHumano").textContent = EMOJI[humano];
+  $("jogadaHumano").style.display = "block";
+
+  if (resultado === "venceu") { pontos.humano++; aviso("Você ganhou essa! 🎉"); }
+  if (resultado === "perdeu") { pontos.ia++; aviso("A máquina ganhou! 🤖"); }
+  if (resultado === "empatou") aviso("Empate!");
+  mostrarPlacar();
+  mostrarCerebro(prob, humano);
+
+  // 4. A IA aprende com essa rodada
+  memoria.rodadas++;
+  if (palpite === humano) memoria.acertos++;
+  aprender({ humano, ia: jogadaIA, resultado });
+  salvar();
+}
+
+async function iniciarPartida() {
+  if (estado !== "aguardando") return;
+  estado = "jogando";
+  historico = [];
+
+  while (pontos.humano < PONTOS_PARA_VENCER && pontos.ia < PONTOS_PARA_VENCER) {
+    await jogarRodada();
+    await esperar(2200);
+  }
+
+  const acertos = historico.filter(h => h.resultado === "perdeu").length;
+  if (pontos.humano > pontos.ia) {
+    memoria.placar.humanos++;
+    aviso("🏆 VOCÊ VENCEU A MÁQUINA!", "Parabéns! Poucos conseguem.");
+  } else {
+    memoria.placar.maquina++;
+    aviso("🤖 A MÁQUINA VENCEU!", `Ela te leu em ${acertos} de ${historico.length} rodadas.`);
+  }
+  salvar();
+  await esperar(5000);
+  telaInicial();
+}
+
+// Atalhos para quem está apresentando
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); iniciarPartida(); }
+  if (e.key === "R" && e.shiftKey && confirm("Zerar o placar do dia e a memória da IA?")) {
+    memoria = memoriaInicial();
+    salvar();
+  }
+});
+
+// =====================================================
+// Início
+// =====================================================
+salvar();
+if (location.protocol === "file:") {
+  aviso("Abra pelo iniciar.sh", "A câmera e a IA não funcionam abrindo o arquivo direto.");
+} else {
+  try {
+    await Promise.all([carregarIA(), ligarCamera()]);
+    telaInicial();
+    loop();
+  } catch (erro) {
+    console.error(erro);
+    aviso("Ops, algo deu errado 😅", erro.name === "NotAllowedError"
+      ? "Permita o acesso à câmera e recarregue a página."
+      : "Verifique a câmera e a internet (ou rode ./baixar-offline.sh).");
+  }
+}
+</script>
+</body>
+</html>
