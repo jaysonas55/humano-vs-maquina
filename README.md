@@ -12,14 +12,8 @@ Feito em HTML, CSS e JavaScript puro. A pasta `vendor/` traz a biblioteca e o mo
 
 Precisa de Python 3, uma webcam e o Chrome ou o Edge.
 
-```bash
-# Linux / Mac
-./iniciar.sh
-
-# Windows
-python -m http.server 8000
-# e abra http://localhost:8000
-```
+- **Windows:** dê dois cliques em `iniciar.bat`. Sem Python? Rode `winget install Python.Python.3.12`.
+- **Linux / Mac:** rode `./iniciar.sh`.
 
 Não abra o `index.html` com duplo clique: sem o servidor local, a câmera e a IA não carregam.
 
