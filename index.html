@@ -413,8 +413,8 @@ async function jogarRodada() {
   $("maoIA").classList.add("pensando");
 
   // 2. Contagem
-  for (const palavra of ["Pedra...", "Papel...", "Tesoura..."]) {
-    aviso(palavra, "", true);
+  for (const numero of ["3", "2", "1"]) {
+    aviso(numero, "", true);
     await esperar(650);
   }
   aviso("JÁ!", "Segure a mão parada!", true);
